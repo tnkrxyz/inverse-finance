@@ -1,6 +1,12 @@
-type ExampleEntity @entity {
+# Subgraph Schema: Lending Protocol
+# Version: 1.0.1
+
+type Token @entity {
+  " Smart contract address of the market "
   id: ID!
-  count: BigInt!
-  owner: Bytes! # address
-  spender: Bytes! # address
+
+  " Mirrored from the smart contract "
+  name: String!
+  symbol: String!
+  decimals: Int!
 }
