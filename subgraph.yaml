@@ -2,23 +2,44 @@ specVersion: 0.0.2
 schema:
   file: ./schema.graphql
 dataSources:
-  - kind: ethereum
-    name: INV
+  - kind: ethereum/contract
+    name: Factory
     network: mainnet
     source:
-      address: "0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68"
-      abi: INV
-      startBlock: 11498340
+      address: '0x4dCf7407AE5C07f8681e1659f626E114A7667339'
+      abi: Factory
+      startBlock: 11915867
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.5
+      apiVersion: 0.0.6
       language: wasm/assemblyscript
+      file: ./src/factory.ts
       entities:
+        - LendingProtocol      
+      abis:
+        - name: Factory
+          file: ./abis/comptroller.json
+      eventHandlers:
+        - event: MarketListed(address)
+          handler: handleMarketListed
+
+templates:
+  - kind: ethereum/contract
+    name: Market
+    network: mainnet
+    source:
+      abi: CErc20
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      file: ./src/core.ts
+      entities:
+        - Market
         - Token
       abis:
-        - name: INV
-          file: ./abis/INV.json
+        - name: CErc20
+          file: ./abis/CErc20.json
       eventHandlers:
-        - event: OwnerChanged(address,address)
-          handler: handleOwnerChanged
-      file: ./src/mapping.ts
+        - event: Mint(address,uint256,uint256)
+          handler: handleMint
