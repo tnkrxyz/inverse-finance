@@ -329,7 +329,7 @@ type Market @entity {
 
   repays: [Repay!]! @derivedFrom(field: "market")
 
-  liquidations: [Liquidation!]! @derivedFrom(field: "market")
+  liquidates: [Liquidate!]! @derivedFrom(field: "market")
 }
 
 #################################
@@ -581,7 +581,7 @@ type Repay implements Event @entity {
   amountUSD: BigDecimal
 }
 
-type Liquidation implements Event @entity {
+type Liquidate implements Event @entity {
   " { Transaction hash }-{ Log index } "
   id: ID!
 
@@ -633,4 +633,12 @@ type Account @entity {
 type DailyActiveAccount @entity {
   " { Days since Unix epoch }-{ Address of the account } "
   id: ID!
+}
+
+# Helper entity for Market.totalVolumeUSD
+type _HelperStore @entity {
+  id: ID!
+  valueDecimal: BigDecimal
+  valueInt: Int
+
 }

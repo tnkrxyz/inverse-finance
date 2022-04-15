@@ -43,23 +43,20 @@ export namespace RewardTokenType {
 }
 
 export namespace HelperStoreType {
-  export const ETHER = 'ETHER'
-  export const USERS = 'USERS'
-  // Pool addresses are also stored in the HelperStore
+  export const TOTALVOLUME = 'totalVolume'
 }
 
-export namespace TransferType {
-  export const MINT = 'MINT'
-  export const BURN = 'BURN'
-  // Pool addresses are also stored in the HelperStore
+export namespace LendingType {
+  export const CDP = 'CDP'
+  export const POOLED = 'POOLED'
+}
+
+export namespace RiskType {
+  export const GLOBAL = 'GLOBAL'
+  export const ISOLATED = 'ISOLATED'
 }
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-
-export const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
-export const USDC_WETH_PAIR = '0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc' // created 10008355
-export const DAI_WETH_PAIR = '0xa478c2975ab1ea89e8196811f51a7b7ade33eb11' // created block 10042267
-export const USDT_WETH_PAIR = '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852' // created block 10093341
 
 export const DEFAULT_DECIMALS = 18;
 export const USDC_DECIMALS = 6;
@@ -89,10 +86,12 @@ export const SECONDS_PER_DAY = 60 * 60 * 24;
 export const MS_PER_DAY = new BigDecimal(BigInt.fromI32(24 * 60 * 60 * 1000));
 export const MS_PER_YEAR = DAYS_PER_YEAR.times(
   new BigDecimal(BigInt.fromI32(24 * 60 * 60 * 1000))
-);
+)
+
+export const MANTISSA_FACTOR = new BigDecimal(BigInt.fromI32(10^18))
 
 //////////////
-// specified in dataSource
-//export const FACTORY_ADDRESS = '0x4dCf7407AE5C07f8681e1659f626E114A7667339'
+export const FACTORY_ADDRESS = '0x4dCf7407AE5C07f8681e1659f626E114A7667339'
 // INV contract address
 export const REWARDTOKEN_ADDRESS = '0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68'
+export const DOLA_ADDRESS = '0x865377367054516e17014CcdED1e7d814EDC9ce4'

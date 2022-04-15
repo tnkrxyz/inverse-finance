@@ -22,10 +22,24 @@ dataSources:
       eventHandlers:
         - event: MarketListed(address)
           handler: handleMarketListed
-
+        - event: ActionPaused(string,bool)
+          handler: handleTransferSeizePaused
+        - event: ActionPaused(address,string,bool)
+          handler: handleMintBorrowPaused
+        - event: DistributedBorrowerComp(indexed address,indexed address,uint256,uint256)
+          handler: handleDistributedBorrowerComp
+        - event: DistributedSupplierComp(indexed address,indexed address,uint256,uint256)
+          handler: handleDistributedSupplierComp
+        - event: NewCollateralFactor(address,uint256,uint256)
+          handler: handleNewCollateralFactor
+        - event: NewCloseFactor(uint256,uint256)
+          handler: handleNewCloseFactor
+        - event: NewLiquidationIncentive(uint256,uint256)
+          handler: handleNewLiquidationIncentive
+          
 templates:
   - kind: ethereum/contract
-    name: Market
+    name: CToken
     network: mainnet
     source:
       abi: CErc20
@@ -37,9 +51,27 @@ templates:
       entities:
         - Market
         - Token
+        - Deposit
+        - Withdraw
+        - Borrow
+        - Repay
+        - Liquidate
+        - Account
+        - DailyActiveAccount
+        - UsageMetricsDailySnapshot
+        - FinancialsDailySnapshot
+        - MarketDailySnapshot
       abis:
         - name: CErc20
           file: ./abis/CErc20.json
       eventHandlers:
         - event: Mint(address,uint256,uint256)
           handler: handleMint
+        - event: Redeem(address,uint256,uint256)
+          handler: handleRedeem
+        - event: Borrow(address,uint256,uint256,uint256)
+          handler: handleBorrow
+        - event: RepayBorrow(address,address,uint256,uint256,uint256)
+          handler: handleRepayBorrow
+        - event: LiquidateBorrow(address,address,uint256,address,uint256)
+          handler: handleLiquidateBorrow
