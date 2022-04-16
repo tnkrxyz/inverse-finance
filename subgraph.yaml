@@ -1,7 +1,28 @@
-specVersion: 0.0.2
+specVersion: 0.0.3
 schema:
   file: ./schema.graphql
 dataSources:
+  - kind: ethereum/contract
+    name: INV
+    network: mainnet
+    source:
+      address: '0x41D5D79431A913C4aE7d69a668ecdfE5fF9DFB68'
+      abi: INV
+      startBlock: 11498340
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      file: ./src/token.ts
+      entities:
+        - RewardToken
+      abis:
+        - name: INV
+          file: ./abis/INV.json
+      eventHandlers:
+        - event: OwnerChanged(address,address)
+          handler: handleOwnerChanged
+
   - kind: ethereum/contract
     name: Factory
     network: mainnet
@@ -24,6 +45,8 @@ dataSources:
           file: ./abis/priceOracle.json
         - name: CErc20
           file: ./abis/CErc20.json
+        - name: ERC20
+          file: ./abis/ERC20.json
       eventHandlers:
         - event: MarketListed(address)
           handler: handleMarketListed

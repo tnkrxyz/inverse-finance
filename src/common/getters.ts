@@ -2,7 +2,7 @@ import { Address, ethereum, BigInt, BigDecimal, log } from "@graphprotocol/graph
 import { Factory  } from '../../generated/Factory/Factory'
 import { PriceOracle  } from '../../generated/Factory/PriceOracle'
 import { CErc20 } from "../../generated/templates/CToken/CErc20"
-import { ERC20 } from "../../generated/templates/CToken/ERC20"
+import { ERC20 } from "../../generated/Factory/ERC20"
 import {
   Token,
   LendingProtocol,

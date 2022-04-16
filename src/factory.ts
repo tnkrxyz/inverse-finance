@@ -27,8 +27,9 @@ export function handleMarketListed(event: MarketListed): void {
     // Create underlying tokens: YFI, xSUSHI, WBTC, DOLA, ...
     // There is no underlying token for anETH (ETH)
     if (tokenContract.name() != "anETH") {
-      //getOrCreateUnderlyingToken(tokenContract.underlying().toHexString())
-      getOrCreateToken(tokenContract.underlying().toHexString())
+      log.info("Creating token {} ...", [tokenContract.name()])
+      getOrCreateUnderlyingToken(tokenContract.underlying().toHexString())
+      //getOrCreateToken(tokenContract.try_underlying().toHexString())
     }
     
     let marketAddr = event.params.cToken.toHexString()
