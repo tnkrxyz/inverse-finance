@@ -1,6 +1,8 @@
-import { Address, ethereum, BigInt } from "@graphprotocol/graph-ts"
-//import { Factory } from "../../generated/Factory/Factory"
-import { CErc20 } from "../../generated/templates/Market/CErc20"
+import { Address, ethereum, BigInt, BigDecimal, log } from "@graphprotocol/graph-ts"
+import { Factory  } from '../../generated/Factory/Factory'
+import { PriceOracle  } from '../../generated/Factory/PriceOracle'
+import { CErc20 } from "../../generated/templates/CToken/CErc20"
+import { ERC20 } from "../../generated/templates/CToken/ERC20"
 import {
   Token,
   LendingProtocol,
@@ -18,19 +20,19 @@ import {
     BIGINT_ZERO,
     INT_ZERO,
     FACTORY_ADDRESS,
-    REWARDTOKEN_ADDRESS,
+    INV_ADDRESS,
     ZERO_ADDRESS,
     ProtocolType,
     LendingType,
     RiskType, 
-    SECONDS_PER_DAY
+    SECONDS_PER_DAY,
+    MANTISSA_FACTOR
 } from "../common/constants"
-import { log } from '@graphprotocol/graph-ts'
 
 export function getOrCreateToken(id: string): Token {
     let token = Token.load(id)
   
-    if (!token) {
+    if (token == null) {
       token = new Token(id)
     
       let contract = CErc20.bind(Address.fromString(id))
@@ -43,14 +45,14 @@ export function getOrCreateToken(id: string): Token {
     return token
   }
 
-  // This is unnecessary as it can be handled by getOrCreateToken
+  // This is currently unnecessary as it can be handled by getOrCreateToken
   export function getOrCreateUnderlyingToken(id: string): Token {   
     let token = Token.load(id)
-    if (!token) {
+    if (token == null) {
       token = new Token(id)
       //even the underlying token is not strictly an CERC20, 
       // it should work for the purpose of getting name, symbol, & decimals
-      let contract = CErc20.bind(Address.fromString(id)) 
+      let contract = ERC20.bind(Address.fromString(id)) 
       //let tokenContract = contract.bind(Address.fromString(id))
       token.name = contract.name()
       token.symbol = contract.symbol()
@@ -61,6 +63,17 @@ export function getOrCreateToken(id: string): Token {
     return token
   }
 
+  export function getUnderlyingTokenPrice(cToken: Address): BigDecimal {
+    let factoryContract = Factory.bind(Address.fromString(FACTORY_ADDRESS))
+    let oracleAddress = factoryContract.oracle() as Address
+    let oracleContract = PriceOracle.bind(oracleAddress)
+    let underlyingPrice = oracleContract.getUnderlyingPrice(cToken)
+                            .toBigDecimal()
+                            .div(MANTISSA_FACTOR)
+
+    return underlyingPrice
+  }
+  
   export function getOrCreateProtocol(): LendingProtocol {
     let protocol = LendingProtocol.load(FACTORY_ADDRESS)
   
@@ -81,7 +94,7 @@ export function getOrCreateToken(id: string): Token {
       protocol.totalBorrowUSD = BIGDECIMAL_ZERO
       //protocol.usageMetrics
       //protocol.financialMetrics
-      protocol.markets = []
+      //protocol.markets
       protocol.lendingType = LendingType.CDP
       protocol.riskType = RiskType.GLOBAL
       
@@ -108,7 +121,7 @@ export function getOrCreateToken(id: string): Token {
       market.protocol = FACTORY_ADDRESS
       market.inputTokens = [asset]
       market.outputToken = marketAddr //Token.load(marketAddr).id
-      market.rewardTokens = [REWARDTOKEN_ADDRESS] //[Token.load(REWARDTOKEN_ADDRESS).id]
+      market.rewardTokens = [INV_ADDRESS] //[Token.load(INV_ADDRESS).id]
 
       market.totalValueLockedUSD = BIGDECIMAL_ZERO
       market.totalVolumeUSD = BIGDECIMAL_ZERO
@@ -148,6 +161,7 @@ export function getOrCreateToken(id: string): Token {
     return market
   }
 
+  // Unused
   export function getOrCreateHelperStore(id: string): _HelperStore {
     let store = _HelperStore.load(id)
   
@@ -158,83 +172,20 @@ export function getOrCreateToken(id: string): Token {
     }
     return store
   }
-  export function getOrCreateUsageMetricSnapshot(event: ethereum.Event): UsageMetricsDailySnapshot{
-/*     // Number of days since Unix epoch
-    let id: i64 = event.block.timestamp.toI64() / SECONDS_PER_DAY;
 
-    // Create unique id for the day
-    let usageMetrics = UsageMetricsDailySnapshot.load(id.toString());
-  
-    if (!usageMetrics) {
-        usageMetrics = new UsageMetricsDailySnapshot(id.toString());
-        usageMetrics.protocol = dataSource.address();
-  
-        usageMetrics.activeUsers = INT_ZERO;
-        usageMetrics.totalUniqueUsers = INT_ZERO;
-        usageMetrics.dailyTransactionCount = INT_ZERO;
-        usageMetrics.save()
+  export function getOrCreateFinancialsDailySnapshot(event: ethereum.Event): FinancialsDailySnapshot {
+    let days: string = (event.block.timestamp.toI64() / SECONDS_PER_DAY).toString()
+    let financialMetrics = FinancialsDailySnapshot.load(days)
+    if (financialMetrics == null) {
+      financialMetrics = new FinancialsDailySnapshot(days)
+      financialMetrics.protocol = FACTORY_ADDRESS
+      financialMetrics.protocolControlledValueUSD = BIGDECIMAL_ZERO
+      financialMetrics.totalVolumeUSD = BIGDECIMAL_ZERO
+      financialMetrics.totalDepositUSD = BIGDECIMAL_ZERO
+      financialMetrics.totalBorrowUSD = BIGDECIMAL_ZERO
+      financialMetrics.supplySideRevenueUSD = BIGDECIMAL_ZERO
+      financialMetrics.protocolSideRevenueUSD = BIGDECIMAL_ZERO
+      financialMetrics.totalRevenueUSD = BIGDECIMAL_ZERO
     }
-
-    return usageMetrics */
-}
-
-export function getOrCreateMarketDailySnapshot(event: ethereum.Event): MarketDailySnapshot {
-/*     let id: i64 = event.block.timestamp.toI64() / SECONDS_PER_DAY;
-    let marketAddress = event.address.toHexString()
-    let marketMetrics = MarketDailySnapshot.load(marketAddress.concat("-").concat(id.toString()));
-    
-    if (!marketMetrics) {
-        marketMetrics = new MarketDailySnapshot(marketAddress.concat("-").concat(id.toString()));
-        marketMetrics.protocol = FACTORY_ADDRESS;
-        marketMetrics.market = marketAddress;
-        marketMetrics.rewardTokenEmissionsAmount = []
-        marketMetrics.rewardTokenEmissionsUSD = []
-
-        marketMetrics.save()
-    }
-
-    return marketMetrics */
-}
-
-export function getOrCreateFinancials(event: ethereum.Event): FinancialsDailySnapshot {
-    // Number of days since Unix epoch
-/*     let id: i64 = event.block.timestamp.toI64() / SECONDS_PER_DAY;
-
-    let financialMetrics = FinancialsDailySnapshot.load(id.toString());
-  
-    if (!financialMetrics) {
-        financialMetrics = new FinancialsDailySnapshot(id.toString());
-        financialMetrics.protocol = dataSource.address();
-  
-        financialMetrics.feesUSD = BIGDECIMAL_ZERO
-        financialMetrics.totalVolumeUSD = BIGDECIMAL_ZERO
-        financialMetrics.totalValueLockedUSD = BIGDECIMAL_ZERO
-        financialMetrics.supplySideRevenueUSD = BIGDECIMAL_ZERO
-        financialMetrics.protocolSideRevenueUSD = BIGDECIMAL_ZERO
-
-        financialMetrics.save()
-    }
-    return financialMetrics */
-}
-
-
-/* export function getOrCreateAccount(id: string): Account {
-  // id: string = address
-  let account = Account.load(id)
-  if (!account) {
-    account = new Account(id)
-    account.save()
+    return financialMetrics
   }
-  return account
-}
-
-export function getOrCreateDailyActiveAccount(id: string): DailyActiveAccount {
-  // id: string = `{Number of days since Unix epoch}-{address}`
-  let dailyActiveAccount = DailyActiveAccount.load(id)
-  if (!dailyActiveAccount) {
-    dailyActiveAccount = new DailyActiveAccount(id)
-    dailyActiveAccount.save()
-  }
-  
-  return dailyActiveAccount
-} */

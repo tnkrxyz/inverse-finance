@@ -15,10 +15,13 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/factory.ts
       entities:
-        - LendingProtocol      
+        - LendingProtocol
+        - Market
       abis:
         - name: Factory
           file: ./abis/comptroller.json
+        - name: PriceOracle
+          file: ./abis/priceOracle.json
       eventHandlers:
         - event: MarketListed(address)
           handler: handleMarketListed
@@ -64,6 +67,10 @@ templates:
       abis:
         - name: CErc20
           file: ./abis/CErc20.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: JumpRateModelV2
+          file: ./abis/JumpRateModelV2.json
       eventHandlers:
         - event: Mint(address,uint256,uint256)
           handler: handleMint

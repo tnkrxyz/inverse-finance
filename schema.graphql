@@ -374,7 +374,7 @@ type MarketDailySnapshot @entity {
 
   " Total amount of reward token emissions in a day, normalized to USD "
   rewardTokenEmissionsUSD: [BigDecimal!]
-  
+
   " Block number of this snapshot "
   blockNumber: BigInt!
 

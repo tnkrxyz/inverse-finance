@@ -1,4 +1,4 @@
-import { Address } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts';
 import { 
   Factory, 
   MarketListed, 
@@ -6,10 +6,10 @@ import {
   NewCloseFactor, 
   NewCollateralFactor, 
   NewLiquidationIncentive
-} from '../generated/Factory/Factory';
-import { MANTISSA_FACTOR, BIGDECIMAL_ONE, FACTORY_ADDRESS } from './common/constants';
+} from '../generated/Factory/Factory'
+import { MANTISSA_FACTOR, BIGDECIMAL_ONE, FACTORY_ADDRESS, XINV_ADDRESS, INV_ADDRESS } from './common/constants'
 import { 
-  getOrCreateProtocol, 
+  getOrCreateProtocol,
   getOrCreateToken, 
   getOrCreateUnderlyingToken, 
   getOrCreateMarket 
@@ -17,7 +17,8 @@ import {
 import { CToken } from '../generated/templates'
 import { CErc20 } from '../generated/templates/CToken/CErc20'
 import { Market } from '../generated/schema'
-import { log } from '@graphprotocol/graph-ts'
+import { DistributedBorrowerComp, DistributedSupplierComp } from '../generated/Factory/Factory'
+import { updateMarketEmission, updateFinancials, updateFinancialsRevenue } from './common/helpers';
 
 export function handleMarketListed(event: MarketListed): void {
     //let protocol = getOrCreateProtocol()
@@ -56,8 +57,9 @@ export function handleNewCollateralFactor(event: NewCollateralFactor): void {
   let market = Market.load(marketId)
   if (market != null) {
     let ltvFactor = event.params.newCollateralFactorMantissa
-      .toBigDecimal()
-      .div(MANTISSA_FACTOR)
+                                            .toBigDecimal()
+                                            .div(MANTISSA_FACTOR)
+    // TODO: Verify assumption correct?
     market.maximumLTV = ltvFactor
     market.liquidationThreshold = ltvFactor
     market.save()
@@ -67,11 +69,11 @@ export function handleNewCollateralFactor(event: NewCollateralFactor): void {
 }
 
 export function handleNewCloseFactor(event: NewCloseFactor): void {
-  // Nothing we need here
+  // The liquidator may not repay more than what is allowed by the closeFactor
+  // Nothing we need here 
 }
 
 export function handleNewLiquidationIncentive(event: NewLiquidationIncentive): void {
-  
   let factoryContract = Factory.bind(Address.fromString(FACTORY_ADDRESS))
   let marketAddrs = factoryContract.getAllMarkets()
   for (let i = 0; i <= marketAddrs.length; i++) {
@@ -80,13 +82,26 @@ export function handleNewLiquidationIncentive(event: NewLiquidationIncentive): v
 
     if (market != null) {
       let liquidationPenalty = event.params.newLiquidationIncentiveMantissa
-        .toBigDecimal()
-        .div(MANTISSA_FACTOR)
-        .minus(BIGDECIMAL_ONE)
+                .toBigDecimal()
+                .div(MANTISSA_FACTOR)
+                .minus(BIGDECIMAL_ONE)
       market.liquidationPenalty = liquidationPenalty
+      
       market.save()
     } else {
       log.warning("Market {} does not exist.", [marketId])
     }
   }
+}
+
+export function handleDistributedBorrowerComp(event: DistributedBorrowerComp): void {
+  let marketId = event.params.cToken.toHexString()
+  let newEmissionAmount = event.params.compDelta
+  updateMarketEmission(marketId, newEmissionAmount, event);
+}
+
+export function handleDistributedSupplierComp(event: DistributedSupplierComp): void {
+  let marketId = event.params.cToken.toHexString()
+  let newEmissionAmount = event.params.compDelta
+  updateMarketEmission(marketId, newEmissionAmount, event)
 }
