@@ -22,6 +22,8 @@ dataSources:
           file: ./abis/comptroller.json
         - name: PriceOracle
           file: ./abis/priceOracle.json
+        - name: CErc20
+          file: ./abis/CErc20.json
       eventHandlers:
         - event: MarketListed(address)
           handler: handleMarketListed

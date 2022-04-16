@@ -28,3 +28,7 @@
 - Authenticate (just once): `graph auth --product hosted-service <ACCESS_TOKEN>`
 - Deploy to Subgraph Studio: `graph deploy --studio <SUBGRAPH_NAME>`
 - Deploy to Hosted Service: `graph deploy --product hosted-service <GITHUB_USER>/<SUBGRAPH_NAME>`
+
+## Hosted Subgraph
+
+- Hosted subgraph: https://thegraph.com/hosted-service/subgraph/tnkrxyz/inverse-finance
