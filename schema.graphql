@@ -51,7 +51,7 @@ type RewardToken @entity {
   symbol: String!
   decimals: Int!
 
-  type: RewardTokenType!
+  type: [RewardTokenType!]
 }
 
 #############################
@@ -315,10 +315,10 @@ type Market @entity {
   " Deposit interest rate in APY percentage "
   depositRate: BigDecimal!
 
-  " Borrow interest rate in APY percentage "
-  stableBorrowRate: BigDecimal!
+  " Stable borrow interest rate in APY percentage. Leave as null if no stable borrow rate "
+  stableBorrowRate: BigDecimal
 
-  " Borrow interest rate in APY percentage "
+  " Variable borrow interest rate in APY percentage "
   variableBorrowRate: BigDecimal!
 
   deposits: [Deposit!]! @derivedFrom(field: "market")
@@ -386,10 +386,10 @@ type MarketDailySnapshot @entity {
   " Deposit interest rate in APY percentage "
   depositRate: BigDecimal!
 
-  " Borrow interest rate in APY percentage "
-  stableBorrowRate: BigDecimal!
+  " Stable borrow interest rate in APY percentage. Leave as null if no stable borrow rate "
+  stableBorrowRate: BigDecimal
 
-  " Borrow interest rate in APY percentage "
+  " Variable borrow interest rate in APY percentage "
   variableBorrowRate: BigDecimal!
 }
 
@@ -635,10 +635,9 @@ type DailyActiveAccount @entity {
   id: ID!
 }
 
-# Helper entity for Market.totalVolumeUSD
+# Helper entity
 type _HelperStore @entity {
   id: ID!
   valueDecimal: BigDecimal
   valueInt: Int
-
 }

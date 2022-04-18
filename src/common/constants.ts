@@ -88,7 +88,7 @@ export const MS_PER_YEAR = DAYS_PER_YEAR.times(
   new BigDecimal(BigInt.fromI32(24 * 60 * 60 * 1000))
 )
 
-export const MANTISSA_FACTOR = new BigDecimal(BigInt.fromI32(10^18))
+export const MANTISSA_DECIMALS = 18
 
 //////////////
 export const FACTORY_ADDRESS = '0x4dCf7407AE5C07f8681e1659f626E114A7667339'

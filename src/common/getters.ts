@@ -3,6 +3,7 @@ import { Factory  } from '../../generated/Factory/Factory'
 import { PriceOracle  } from '../../generated/Factory/PriceOracle'
 import { CErc20 } from "../../generated/templates/CToken/CErc20"
 import { ERC20 } from "../../generated/Factory/ERC20"
+import { decimalsToBigDecimal } from './helpers';
 import {
   Token,
   LendingProtocol,
@@ -26,52 +27,77 @@ import {
     LendingType,
     RiskType, 
     SECONDS_PER_DAY,
-    MANTISSA_FACTOR
+    MANTISSA_DECIMALS
 } from "../common/constants"
 
-export function getOrCreateToken(id: string): Token {
-    let token = Token.load(id)
+export function getOrCreateToken(cToken: Address): Token {
+  let tokenId: string = cToken.toHexString()
+  let token = Token.load(tokenId)
   
+  if (token == null) {
+    token = new Token(tokenId)
+  
+    let contract = CErc20.bind(cToken)
+    token.name = contract.name()
+    token.symbol = contract.symbol()
+    token.decimals = contract.decimals()
+
+    token.save()
+  }
+  return token
+  }
+
+  export function getOrCreateUnderlyingToken(cToken: Address): Token {   
+    // use default for cETH, which has no underlying
+    let tokenId = ZERO_ADDRESS
+    let name = 'Ether'
+    let symbol = 'ETH'
+    let decimals = 18
+  
+    //even if the underlying token is not always a CErc20, 
+    // it should work for the purpose of getting name, symbol, & decimals
+    let cTokenContract = CErc20.bind(cToken)
+    let tryUnderlyingTokenAddr = cTokenContract.try_underlying()
+    if (!tryUnderlyingTokenAddr.reverted) {
+      let tokenId = tryUnderlyingTokenAddr.value.toHexString()
+      let underlyingTokenContract = ERC20.bind(tryUnderlyingTokenAddr.value)
+      let name = underlyingTokenContract.name()
+      let symbol = underlyingTokenContract.symbol()
+      let decimals = underlyingTokenContract.decimals()
+    }
+
+    let token = Token.load(tokenId)
+
     if (token == null) {
-      token = new Token(id)
+      token = new Token(tokenId)
+      token.name = name
+      token.symbol = symbol
+      token.decimals = decimals
+
+      token.save()
+    }
+    return token
+  }
     
-      let contract = CErc20.bind(Address.fromString(id))
-      token.name = contract.name()
-      token.symbol = contract.symbol()
-      token.decimals = contract.decimals()
-  
-      token.save()
-    }
-    return token
-  }
-
-  // This is currently unnecessary as it can be handled by getOrCreateToken
-  export function getOrCreateUnderlyingToken(id: string): Token {   
-    let token = Token.load(id)
-    if (token == null) {
-      token = new Token(id)
-      //even the underlying token is not strictly an CERC20, 
-      // it should work for the purpose of getting name, symbol, & decimals
-      let contract = ERC20.bind(Address.fromString(id)) 
-      //let tokenContract = contract.bind(Address.fromString(id))
-      token.name = contract.name()
-      token.symbol = contract.symbol()
-      token.decimals = contract.decimals()
-  
-      token.save()
-    }
-    return token
-  }
-
   export function getUnderlyingTokenPrice(cToken: Address): BigDecimal {
     let factoryContract = Factory.bind(Address.fromString(FACTORY_ADDRESS))
     let oracleAddress = factoryContract.oracle() as Address
     let oracleContract = PriceOracle.bind(oracleAddress)
     let underlyingPrice = oracleContract.getUnderlyingPrice(cToken)
                             .toBigDecimal()
-                            .div(MANTISSA_FACTOR)
+                            .div(decimalsToBigDecimal(MANTISSA_DECIMALS))
 
     return underlyingPrice
+  }
+
+  export function getUnderlyingTokenPricePerAmount(cToken: Address): BigDecimal {
+    //return price of 1 underlying token
+    let underlyingPrice = getUnderlyingTokenPrice(cToken)
+    let decimals = getOrCreateUnderlyingToken(cToken).decimals
+    //let denominator = new BigDecimal(BigInt.fromI64(10^decimals))
+    let denominator = decimalsToBigDecimal(decimals)
+    return underlyingPrice.div(denominator)
+
   }
   
   export function getOrCreateProtocol(): LendingProtocol {
@@ -145,7 +171,7 @@ export function getOrCreateToken(id: string): Token {
       market.liquidationThreshold = BIGDECIMAL_ZERO
       market.liquidationPenalty = BIGDECIMAL_ZERO
       market.depositRate = BIGDECIMAL_ZERO
-      market.stableBorrowRate = BIGDECIMAL_ZERO
+      //market.stableBorrowRate = BIGDECIMAL_ZERO
       market.variableBorrowRate = BIGDECIMAL_ZERO
       //market.deposits
       //market.withdraws

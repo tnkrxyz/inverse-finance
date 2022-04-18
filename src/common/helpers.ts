@@ -8,7 +8,8 @@ import {
     anDOLA_ADDRESS,
     INV_ADDRESS,
     XINV_ADDRESS,
-    SECONDS_PER_DAY
+    SECONDS_PER_DAY,
+    MANTISSA_DECIMALS
 } from "./constants"
 import { 
     CErc20, 
@@ -36,18 +37,24 @@ import {
 } from '../../generated/schema'
 import { Factory } from '../../generated/Factory/Factory'
 import { log, ethereum, BigDecimal, BigInt, Address } from '@graphprotocol/graph-ts'
-import { PriceOracle } from '../../generated/Factory/PriceOracle';
-import { LendingProtocol } from '../../generated/schema';
-import { MANTISSA_FACTOR } from './constants';
+import { getUnderlyingTokenPricePerAmount } from './getters';
 import { 
     getOrCreateProtocol,
     getOrCreateToken, 
-    //getOrCreateUnderlyingToken, 
+    getOrCreateUnderlyingToken, 
     getOrCreateFinancialsDailySnapshot,
     getOrCreateMarket,
     getUnderlyingTokenPrice
   } from "./getters"
 
+  // new BigDecimals(BigInt.fromI64(10^decimals))
+  export function decimalsToBigDecimal(decimals: i32): BigDecimal {
+    let bd = BigDecimal.fromString('1')
+    for (let i = 0; i < decimals; i++) {
+      bd = bd.times(BigDecimal.fromString('10'))
+    }
+    return bd
+  }
 
 // Create Account entity for participating account
 // return 1 if account is new, 0 if account already exists
@@ -83,8 +90,7 @@ export function createDeposit(event: Mint): void {
     let deposit = Deposit.load(depositId)
 
     if (deposit == null) {
-        let underlyingTokenPrice = getUnderlyingTokenPrice(event.address)
-        let TokenDecimals = getOrCreateToken(event.address.toHexString()).decimals
+        let pricePerToken = getUnderlyingTokenPricePerAmount(event.address)
         deposit = new Deposit(depositId)
         
         deposit.hash = event.transaction.hash.toHexString()
@@ -95,12 +101,11 @@ export function createDeposit(event: Mint): void {
         deposit.blockNumber = event.block.number
         deposit.timestamp = event.block.timestamp
         deposit.market = event.address.toHexString()
-        deposit.asset = event.address.toHexString()
+        deposit.asset = getOrCreateUnderlyingToken(event.address).id
         deposit.amount = event.params.mintAmount
         deposit.amountUSD = deposit.amount
                              .toBigDecimal()
-                             .times(underlyingTokenPrice)
-                             .div(BigInt.fromI32(10 ^ TokenDecimals).toBigDecimal())
+                             .times(pricePerToken)
         deposit.save()
     } else {
         log.warning('Deposit {} already exists', [depositId])
@@ -114,8 +119,8 @@ export function createWithdraw(event: Redeem): void {
     let withdraw = Withdraw.load(withdrawId)
 
     if (withdraw == null) {
-        let underlyingTokenPrice = getUnderlyingTokenPrice(event.address)
-        let TokenDecimals = getOrCreateToken(event.address.toHexString()).decimals
+        let pricePerToken = getUnderlyingTokenPricePerAmount(event.address)
+
         withdraw = new Withdraw(withdrawId)
 
         withdraw.hash = event.transaction.hash.toHexString()
@@ -126,12 +131,11 @@ export function createWithdraw(event: Redeem): void {
         withdraw.blockNumber = event.block.number
         withdraw.timestamp = event.block.timestamp
         withdraw.market = event.address.toHexString()
-        withdraw.asset = event.address.toHexString()
+        withdraw.asset = getOrCreateUnderlyingToken(event.address).id
         withdraw.amount = event.params.redeemAmount
         withdraw.amountUSD = withdraw.amount
                                 .toBigDecimal()
-                                .times(underlyingTokenPrice)
-                                .div(BigInt.fromI32(10 ^ TokenDecimals).toBigDecimal())
+                                .times(pricePerToken)
         withdraw.save()
     } else {
         log.warning('Withdraw {} already exists', [withdrawId])
@@ -144,8 +148,7 @@ export function createBorrow(event: Borrow): void {
     let borrow = BorrowSC.load(borrowId)
 
     if (borrow == null) {
-        let DOLAPrice = getUnderlyingTokenPrice(Address.fromString(anDOLA_ADDRESS))
-        let tokenDecimals = getOrCreateToken(DOLA_ADDRESS).decimals
+        let pricePerToken = getUnderlyingTokenPricePerAmount(Address.fromString(anDOLA_ADDRESS))
         borrow = new BorrowSC(borrowId)
 
         borrow.hash = event.transaction.hash.toHexString()
@@ -159,8 +162,8 @@ export function createBorrow(event: Borrow): void {
         borrow.asset = DOLA_ADDRESS
         borrow.amount = event.params.borrowAmount
         borrow.amountUSD = borrow.amount.toBigDecimal()
-                                        .times(DOLAPrice)
-                                        .div(BigInt.fromI32(10 ^ tokenDecimals).toBigDecimal())
+                                        .times(pricePerToken)
+                                        
         borrow.save()
     } else {
         log.warning('Borrow {} already exists', [borrowId])
@@ -173,8 +176,7 @@ export function createRepay(event: RepayBorrow): void {
     let repay = Repay.load(repayId)
 
     if (repay == null) {
-        let DOLAPrice = getUnderlyingTokenPrice(Address.fromString(anDOLA_ADDRESS))
-        let tokenDecimals = getOrCreateToken(DOLA_ADDRESS).decimals
+        let pricePerToken = getUnderlyingTokenPricePerAmount(Address.fromString(anDOLA_ADDRESS))
         repay = new Repay(repayId)
 
         repay.hash = event.transaction.hash.toHexString()
@@ -188,8 +190,8 @@ export function createRepay(event: RepayBorrow): void {
         repay.asset = DOLA_ADDRESS
         repay.amount = event.params.repayAmount
         repay.amountUSD = repay.amount.toBigDecimal()
-                                      .times(DOLAPrice)
-                                      .div(BigInt.fromI32(10 ^ tokenDecimals).toBigDecimal())
+                                      .times(pricePerToken)
+                                      
         repay.save()
     } else {
         log.warning('Repay {} already exists', [repayId])
@@ -202,10 +204,9 @@ export function createLiquidate(event: LiquidateBorrow): void {
     let liquidate = Liquidate.load(liquidateId)
 
     if (liquidate == null) {
-        let underlyingTokenPrice = getUnderlyingTokenPrice(event.address)
-        let underlyingDecimals = getOrCreateToken(event.address.toHexString()).decimals
-        let DOLAPrice = getUnderlyingTokenPrice(Address.fromString(anDOLA_ADDRESS))
-        let DOLADecimals = getOrCreateToken(DOLA_ADDRESS).decimals
+        let pricePerUnderlyingToken = getUnderlyingTokenPricePerAmount(event.address)
+        let pricePerDOLA = getUnderlyingTokenPricePerAmount(Address.fromString(anDOLA_ADDRESS))
+
         liquidate = new Liquidate(liquidateId)
 
         liquidate.hash = event.transaction.hash.toHexString()
@@ -219,11 +220,10 @@ export function createLiquidate(event: LiquidateBorrow): void {
         liquidate.asset = event.params.cTokenCollateral.toHexString()
         liquidate.amount = event.params.seizeTokens
         liquidate.amountUSD = liquidate.amount.toBigDecimal()
-                                              .times(underlyingTokenPrice)
-                                              .div(BigInt.fromI32(10 ^ underlyingDecimals).toBigDecimal())
+                                              .times(pricePerUnderlyingToken)
         let repayAmountUSD = event.params.repayAmount.toBigDecimal()
-                                                     .times(DOLAPrice)
-                                                     .div(BigInt.fromI32(10 ^ DOLADecimals).toBigDecimal())
+                                                     .times(pricePerDOLA)
+                                                     
         liquidate.profitUSD = liquidate.amountUSD!.minus(repayAmountUSD)
 
         liquidate.save()
@@ -282,7 +282,7 @@ export function updateFinancials(event: ethereum.Event): void {
     let factoryContract = Factory.bind(Address.fromString(FACTORY_ADDRESS))
     let marketAddrs = factoryContract.getAllMarkets()
     // sum over AllMarkets
-    for (let i = 0; i <= marketAddrs.length; i++) {
+    for (let i = 0; i < marketAddrs.length; i++) {
         let marketId = marketAddrs[i].toHexString()
         let market = Market.load(marketId)
 
@@ -306,12 +306,15 @@ export function updateFinancials(event: ethereum.Event): void {
 }
 
 export function updateFinancialsRevenue(event: ethereum.Event,
-                                        newRewardUSD: BigDecimal
+                                        newRewardUSD: BigDecimal = BIGDECIMAL_ZERO,
+                                        newProtocolRevenueUSD: BigDecimal = BIGDECIMAL_ZERO
                                         ): void {
     let financialMetrics = getOrCreateFinancialsDailySnapshot(event)
     financialMetrics.supplySideRevenueUSD = financialMetrics.supplySideRevenueUSD.plus(newRewardUSD)
+    financialMetrics.protocolSideRevenueUSD = financialMetrics.protocolSideRevenueUSD.plus(newProtocolRevenueUSD)
+    financialMetrics.totalRevenueUSD = financialMetrics.supplySideRevenueUSD
+                                            .plus(financialMetrics.protocolSideRevenueUSD)
     financialMetrics.save()
-
 }
 
 // Update MarketDailySnapshot entity
@@ -338,7 +341,7 @@ export function updateMarketMetrics(event: ethereum.Event): void {
     marketMetrics.rewardTokenEmissionsAmount = market.rewardTokenEmissionsAmount
     marketMetrics.rewardTokenEmissionsUSD = market.rewardTokenEmissionsUSD
     marketMetrics.depositRate = market.depositRate
-    marketMetrics.stableBorrowRate = market.stableBorrowRate
+    //marketMetrics.stableBorrowRate = market.stableBorrowRate
     marketMetrics.variableBorrowRate = market.variableBorrowRate
 
     // Update the block number and timestamp to that of the last transaction of that day
@@ -361,18 +364,17 @@ export function updateMarket(event: ethereum.Event,
     if (market != null ) {
         let tokenContract = CErc20.bind(event.address)
         // To get the price of DOLA, fixed at 1
-        let DOLADecimals = getOrCreateToken(DOLA_ADDRESS).decimals
-        let DOLAPrice = getUnderlyingTokenPrice(Address.fromString(anDOLA_ADDRESS))
+        let pricePerDOLA = getUnderlyingTokenPricePerAmount(Address.fromString(anDOLA_ADDRESS))
         // To get the price of the underlying (input) token
-        let tokenDecimals = getOrCreateToken(event.address.toHexString()).decimals
         let inputTokenPrice = getUnderlyingTokenPrice(event.address)
+        let pricePerInputToken = getUnderlyingTokenPricePerAmount(event.address)
         let inputTokenBalance = tokenContract.totalReserves()
         market.inputTokenBalances = [inputTokenBalance]
         market.inputTokenPricesUSD = [inputTokenPrice]
         market.totalDepositUSD = inputTokenBalance
                                     .toBigDecimal()
-                                    .times(inputTokenPrice)
-                                    .div(BigInt.fromI32(10 ^ tokenDecimals).toBigDecimal())
+                                    .times(pricePerInputToken)
+                                    
         // TODO: Verify assumption correct?
         market.totalValueLockedUSD = market.totalDepositUSD
         market.outputTokenSupply = tokenContract.totalSupply()
@@ -380,13 +382,13 @@ export function updateMarket(event: ethereum.Event,
         market.totalBorrowUSD = tokenContract
                                     .totalBorrows()
                                     .toBigDecimal()
-                                    .times(DOLAPrice)
-                                    .div(BigInt.fromI32(10 ^ DOLADecimals).toBigDecimal())
+                                    .times(pricePerDOLA)
+                                    
         if (borrowAmount != BIGINT_ZERO) {
             let borrowAmountUSD = borrowAmount
                                     .toBigDecimal()
-                                    .times(DOLAPrice)
-                                    .div(BigInt.fromI32(10 ^ DOLADecimals).toBigDecimal())
+                                    .times(pricePerDOLA)
+                                    
             market.totalVolumeUSD = market.totalVolumeUSD.plus(borrowAmountUSD)
         }
         //TODO: It may make sense to merge them into updateMarket?
@@ -424,7 +426,7 @@ export function updateProtocol(event: ethereum.Event): void {
     let totalVolumeUSD = BIGDECIMAL_ZERO
     let totalDepositUSD = BIGDECIMAL_ZERO
     let totalBorrowUSD = BIGDECIMAL_ZERO
-    for (let i = 0; i <= marketAddrs.length; i++) {
+    for (let i = 0; i < marketAddrs.length; i++) {
         let marketId = marketAddrs[i].toHexString()
         let market = Market.load(marketId)
 
@@ -446,24 +448,24 @@ export function updateMarketEmission(marketId: string,
                                      event: ethereum.Event): void {
     let market = getOrCreateMarket(marketId, event);
     if (market == null) {
-        log.error("Market {} does not exist.", [marketId]);
+        log.error("Market {} does not exist.", [marketId])
     }
-    let INVDecimals = getOrCreateToken(INV_ADDRESS).decimals;
-    let INVPrice = getUnderlyingTokenPrice(Address.fromString(XINV_ADDRESS));
+
+    //let INVPrice = getUnderlyingTokenPrice(Address.fromString(XINV_ADDRESS))
+    let pricePerToken = getUnderlyingTokenPricePerAmount(Address.fromString(XINV_ADDRESS))
     // We use mark-to-market accounting here
-    let emissionAmount = market.rewardTokenEmissionsAmount![0].plus(newEmissionAmount);
+    let emissionAmount = market.rewardTokenEmissionsAmount![0].plus(newEmissionAmount)
     let emissionUSD = emissionAmount
                        .toBigDecimal()
-                       .times(INVPrice)
-                       .div(BigInt.fromI32(10 ^ INVDecimals).toBigDecimal())
+                       .times(pricePerToken)
     market.rewardTokenEmissionsAmount = [emissionAmount]
     market.rewardTokenEmissionsUSD = [emissionUSD]
+    
     market.save()
 
     let newEmissionUSD = newEmissionAmount.toBigDecimal()
-                                          .times(INVPrice)
-                                          .div(BigInt.fromI32(10 ^ INVDecimals).toBigDecimal())
-    updateFinancialsRevenue(event, newEmissionUSD)
+                                          .times(pricePerToken)
+    updateFinancialsRevenue(event, newEmissionUSD, BIGDECIMAL_ZERO)
 }
 
 export function updateMarketRates(event: ethereum.Event): void {
@@ -485,13 +487,13 @@ export function updateMarketRates(event: ethereum.Event): void {
 
     // TODO: As far as I can see, inverse finance has no stableBorrowRate
     // this returns 0
-    market.stableBorrowRate = interestRateModelContract.baseRatePerBlock()
-                                                       .toBigDecimal()
-                                                       .div(MANTISSA_FACTOR)
+    //market.stableBorrowRate = interestRateModelContract.baseRatePerBlock()
+    //                                                   .toBigDecimal()
+    //                                                   .div(decimalsToBigDecimal(MANTISSA_DECIMALS))
     market.variableBorrowRate = borrowRate.toBigDecimal()
-                                          .div(MANTISSA_FACTOR)
+                                          .div(decimalsToBigDecimal(MANTISSA_DECIMALS))
     market.depositRate = depositRate.toBigDecimal()
-                                    .div(MANTISSA_FACTOR)
+                                    .div(decimalsToBigDecimal(MANTISSA_DECIMALS))
     
     market.save()
 }

@@ -16,7 +16,7 @@ export function handleOwnerChanged(event: OwnerChanged): void {
             rewardToken.name = tokenContract.name()
             rewardToken.symbol = tokenContract.symbol()
             rewardToken.decimals = tokenContract.decimals()
-            rewardToken.type = RewardTokenType.DEPOSIT
+            rewardToken.type = [RewardTokenType.DEPOSIT, RewardTokenType.BORROW]
         }
 
         rewardToken.save()

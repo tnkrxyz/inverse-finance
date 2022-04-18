@@ -1,4 +1,4 @@
-specVersion: 0.0.3
+specVersion: 0.0.4
 schema:
   file: ./schema.graphql
 dataSources:
@@ -41,12 +41,12 @@ dataSources:
       abis:
         - name: Factory
           file: ./abis/comptroller.json
-        - name: PriceOracle
-          file: ./abis/priceOracle.json
         - name: CErc20
           file: ./abis/CErc20.json
         - name: ERC20
           file: ./abis/ERC20.json
+        - name: PriceOracle
+          file: ./abis/priceOracle.json
       eventHandlers:
         - event: MarketListed(address)
           handler: handleMarketListed
@@ -64,7 +64,7 @@ dataSources:
           handler: handleNewCloseFactor
         - event: NewLiquidationIncentive(uint256,uint256)
           handler: handleNewLiquidationIncentive
-          
+
 templates:
   - kind: ethereum/contract
     name: CToken
@@ -90,12 +90,16 @@ templates:
         - FinancialsDailySnapshot
         - MarketDailySnapshot
       abis:
+        - name: Factory
+          file: ./abis/comptroller.json
         - name: CErc20
           file: ./abis/CErc20.json
         - name: ERC20
           file: ./abis/ERC20.json
         - name: JumpRateModelV2
           file: ./abis/JumpRateModelV2.json
+        - name: PriceOracle
+          file: ./abis/priceOracle.json
       eventHandlers:
         - event: Mint(address,uint256,uint256)
           handler: handleMint
@@ -106,4 +110,6 @@ templates:
         - event: RepayBorrow(address,address,uint256,uint256,uint256)
           handler: handleRepayBorrow
         - event: LiquidateBorrow(address,address,uint256,address,uint256)
-          handler: handleLiquidateBorrow
+          handler: handleLiquidateBorrow       
+        - event: AccrueInterest(uint256,uint256,uint256,uint256)
+          handler: handleAccrueInterest

@@ -1,14 +1,7 @@
-import { dataSource, ethereum, Address, BigDecimal } from '@graphprotocol/graph-ts';
-import { Factory } from '../generated/Factory/Factory'
-import { updateMarketRates } from './common/helpers';
+import { Address } from '@graphprotocol/graph-ts';
 import {
-    DOLA_ADDRESS,
-    LendingType,
-    RiskType,
-    FACTORY_ADDRESS,
-    BIGDECIMAL_ZERO,
-    SECONDS_PER_DAY,
-    HelperStoreType
+    anDOLA_ADDRESS,
+    BIGDECIMAL_ZERO
 } from "./common/constants"
 
 import { 
@@ -17,18 +10,8 @@ import {
     Borrow, 
     RepayBorrow, 
     LiquidateBorrow,
-    NewMarketInterestRateModel
+    AccrueInterest
 } from '../generated/templates/CToken/CErc20'
-import { 
-    Account,
-    DailyActiveAccount,
-    Market, 
-    Deposit, 
-    Withdraw, 
-    Borrow as BorrowSC, 
-    Repay, 
-    Liquidate
-} from '../generated/schema'
 import { 
     createDeposit,
     createWithdraw,
@@ -39,8 +22,12 @@ import {
     updateMarket,
     updateMarketMetrics,
     updateFinancials,
-    updateProtocol
+    updateFinancialsRevenue,
+    updateProtocol,
+    updateMarketRates
 } from './common/helpers'
+
+import { getUnderlyingTokenPricePerAmount } from './common/getters';
 
 export function handleMint(event: Mint): void {
     let user = event.params.minter
@@ -96,4 +83,13 @@ export function handleLiquidateBorrow(event: LiquidateBorrow): void {
     updateMarketMetrics(event)
     updateFinancials(event)
     updateProtocol(event)
+}
+
+export function handleAccrueInterest(event: AccrueInterest): void {
+    let interestAccumulated = event.params.interestAccumulated
+    // interest is accounted in DOLA
+    let pricePerToken = getUnderlyingTokenPricePerAmount(Address.fromString(anDOLA_ADDRESS))
+    let interestAccumulatedUSD = interestAccumulated.toBigDecimal()
+                                                    .times(pricePerToken)
+    updateFinancialsRevenue(event, BIGDECIMAL_ZERO, interestAccumulatedUSD)
 }
